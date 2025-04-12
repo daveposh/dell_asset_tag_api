@@ -1,6 +1,6 @@
 # Dell Asset Tag API
 
-A Python tool for interacting with Dell's API to retrieve asset and entitlement information.
+A Python tool for interacting with Dell's API to retrieve asset and entitlement information. This tool provides both a command-line interface (CLI) and a REST API for integration with other systems.
 
 ## Features
 
@@ -11,6 +11,8 @@ A Python tool for interacting with Dell's API to retrieve asset and entitlement 
 - Import data from CSV files
 - Debug mode for troubleshooting
 - TLS certificate verification options
+- REST API for integration
+- Command-line interface for direct usage
 
 ## Prerequisites
 
@@ -41,9 +43,15 @@ DELL_CA_CERT=/path/to/your/certificate.pem  # Optional: Path to your CA certific
 DELL_VERIFY_SSL=true  # Optional: Set to false to disable SSL verification (not recommended for production)
 ```
 
-## Usage
+## Command Line Interface (CLI)
 
-### Check Asset Information
+The tool provides a command-line interface for direct usage. All commands support the following common options:
+- `--debug`: Enable debug mode for detailed output
+- `--no-verify-ssl`: Disable SSL certificate verification (not recommended for production)
+
+### Available Commands
+
+#### Check Asset Information
 
 ```bash
 python dell_entitlement.py check-asset <service_tag> [--debug] [--no-verify-ssl]
@@ -54,7 +62,7 @@ Example:
 python dell_entitlement.py check-asset 8CTY3W3 --debug
 ```
 
-### Check Entitlement Information
+#### Check Entitlement Information
 
 ```bash
 python dell_entitlement.py check-entitlement <service_tag> [--debug] [--export] [--no-verify-ssl]
@@ -65,18 +73,7 @@ Example:
 python dell_entitlement.py check-entitlement 8CTY3W3 --debug --export
 ```
 
-### Import from CSV
-
-You can import service tags from a CSV file. The CSV file should have the following format:
-
-```csv
-Name,Asset Tag,Warranty,Acquisition Date,Warranty Expiry Date
-John Smith,ABC123,ProSupport,2021-01-10,2024-01-10
-Jane Doe,DEF456,Basic Support,2021-02-15,2023-02-15
-Bob Johnson,GHI789,Premium Support,2021-03-20,2025-03-20
-```
-
-To import and process multiple service tags from a CSV file:
+#### Import from CSV
 
 ```bash
 python dell_entitlement.py import-csv <input_file.csv> [--debug] [--export] [--no-verify-ssl]
@@ -86,6 +83,110 @@ Example:
 ```bash
 python dell_entitlement.py import-csv assets.csv --debug --export
 ```
+
+#### Start API Server
+
+```bash
+python dell_entitlement.py serve [--host HOST] [--port PORT] [--debug]
+```
+
+Example:
+```bash
+python dell_entitlement.py serve --host 0.0.0.0 --port 5000 --debug
+```
+
+## REST API
+
+The tool also provides a REST API for integration with other systems. The API server can be started using the `serve` command.
+
+### API Endpoints
+
+#### GET /api/asset/{service_tag}
+
+Retrieves asset information for a specific service tag.
+
+Example:
+```bash
+curl -X GET "http://localhost:5000/api/asset/8CTY3W3"
+```
+
+Response:
+```json
+{
+  "serviceTag": "8CTY3W3",
+  "productLineDescription": "Latitude 5420",
+  "shipDate": "2021-01-10T00:00:00Z",
+  "countryCode": "US"
+}
+```
+
+#### GET /api/entitlement/{service_tag}
+
+Retrieves entitlement information for a specific service tag.
+
+Example:
+```bash
+curl -X GET "http://localhost:5000/api/entitlement/8CTY3W3"
+```
+
+Response:
+```json
+{
+  "serviceTag": "8CTY3W3",
+  "entitlements": [
+    {
+      "itemNumber": "123456",
+      "startDate": "2021-01-15T00:00:00Z",
+      "endDate": "2024-01-15T00:00:00Z",
+      "entitlementType": "Warranty",
+      "serviceLevelCode": "PS",
+      "serviceLevelDescription": "ProSupport",
+      "serviceLevelGroup": "Premium"
+    }
+  ]
+}
+```
+
+#### POST /api/import
+
+Import service tags from a CSV file.
+
+Example:
+```bash
+curl -X POST "http://localhost:5000/api/import" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@assets.csv"
+```
+
+Response:
+```json
+{
+  "message": "Import successful",
+  "processed": 3,
+  "successful": 3,
+  "failed": 0
+}
+```
+
+### API Authentication
+
+The API supports two authentication methods:
+
+1. API Key Authentication:
+   - Set the `DELL_API_KEY` environment variable
+   - Include the API key in the `X-API-Key` header
+   ```bash
+   curl -X GET "http://localhost:5000/api/asset/8CTY3W3" \
+     -H "X-API-Key: your_api_key"
+   ```
+
+2. OAuth2 Authentication:
+   - Set the `DELL_CLIENT_ID` and `DELL_CLIENT_SECRET` environment variables
+   - Include the OAuth2 token in the `Authorization` header
+   ```bash
+   curl -X GET "http://localhost:5000/api/asset/8CTY3W3" \
+     -H "Authorization: Bearer your_oauth_token"
+   ```
 
 ### TLS Certificate Configuration
 
@@ -127,6 +228,8 @@ The repository includes an `example.csv` file with dummy data to demonstrate the
 - Only example files are included in the repository
 - Always use proper TLS certificate verification in production environments
 - Avoid disabling SSL verification unless absolutely necessary
+- Use appropriate authentication methods for API access
+- Implement rate limiting for API endpoints in production
 
 ## Contributing
 
