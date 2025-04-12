@@ -18,7 +18,7 @@ A Python tool for interacting with Dell's API to retrieve asset and entitlement 
 
 - Python 3.6 or higher
 - Required Python packages (see requirements.txt)
-- Dell API credentials (client ID and client secret)
+- Dell API credentials
 - TLS certificate (if required by your environment)
 
 ## Installation
@@ -34,11 +34,11 @@ cd dell_asset_tag_api
 pip install -r requirements.txt
 ```
 
-3. Create a `.env` file with your Dell API credentials:
+3. Create a `.env` file with your configuration:
 ```
 DELL_CLIENT_ID=your_client_id
 DELL_CLIENT_SECRET=your_client_secret
-DELL_API_BASE_URL=https://apigtwb2c.us.dell.com/PROD/sbil/eapi/v5
+DELL_API_BASE_URL=your_api_base_url
 DELL_CA_CERT=/path/to/your/certificate.pem  # Optional: Path to your CA certificate
 DELL_VERIFY_SSL=true  # Optional: Set to false to disable SSL verification (not recommended for production)
 ```
@@ -59,7 +59,7 @@ python dell_entitlement.py check-asset <service_tag> [--debug] [--no-verify-ssl]
 
 Example:
 ```bash
-python dell_entitlement.py check-asset 8CTY3W3 --debug
+python dell_entitlement.py check-asset <service_tag> --debug
 ```
 
 #### Check Entitlement Information
@@ -70,7 +70,7 @@ python dell_entitlement.py check-entitlement <service_tag> [--debug] [--export] 
 
 Example:
 ```bash
-python dell_entitlement.py check-entitlement 8CTY3W3 --debug --export
+python dell_entitlement.py check-entitlement <service_tag> --debug --export
 ```
 
 #### Import from CSV
@@ -107,16 +107,16 @@ Retrieves asset information for a specific service tag.
 
 Example:
 ```bash
-curl -X GET "http://localhost:5000/api/asset/8CTY3W3"
+curl -X GET "http://localhost:5000/api/asset/<service_tag>"
 ```
 
 Response:
 ```json
 {
-  "serviceTag": "8CTY3W3",
-  "productLineDescription": "Latitude 5420",
-  "shipDate": "2021-01-10T00:00:00Z",
-  "countryCode": "US"
+  "serviceTag": "<service_tag>",
+  "productLineDescription": "Product Description",
+  "shipDate": "YYYY-MM-DDTHH:MM:SSZ",
+  "countryCode": "XX"
 }
 ```
 
@@ -126,22 +126,22 @@ Retrieves entitlement information for a specific service tag.
 
 Example:
 ```bash
-curl -X GET "http://localhost:5000/api/entitlement/8CTY3W3"
+curl -X GET "http://localhost:5000/api/entitlement/<service_tag>"
 ```
 
 Response:
 ```json
 {
-  "serviceTag": "8CTY3W3",
+  "serviceTag": "<service_tag>",
   "entitlements": [
     {
-      "itemNumber": "123456",
-      "startDate": "2021-01-15T00:00:00Z",
-      "endDate": "2024-01-15T00:00:00Z",
-      "entitlementType": "Warranty",
-      "serviceLevelCode": "PS",
-      "serviceLevelDescription": "ProSupport",
-      "serviceLevelGroup": "Premium"
+      "itemNumber": "XXXXXX",
+      "startDate": "YYYY-MM-DDTHH:MM:SSZ",
+      "endDate": "YYYY-MM-DDTHH:MM:SSZ",
+      "entitlementType": "Type",
+      "serviceLevelCode": "XX",
+      "serviceLevelDescription": "Description",
+      "serviceLevelGroup": "Group"
     }
   ]
 }
@@ -176,7 +176,7 @@ The API supports two authentication methods:
    - Set the `DELL_API_KEY` environment variable
    - Include the API key in the `X-API-Key` header
    ```bash
-   curl -X GET "http://localhost:5000/api/asset/8CTY3W3" \
+   curl -X GET "http://localhost:5000/api/asset/<service_tag>" \
      -H "X-API-Key: your_api_key"
    ```
 
@@ -184,7 +184,7 @@ The API supports two authentication methods:
    - Set the `DELL_CLIENT_ID` and `DELL_CLIENT_SECRET` environment variables
    - Include the OAuth2 token in the `Authorization` header
    ```bash
-   curl -X GET "http://localhost:5000/api/asset/8CTY3W3" \
+   curl -X GET "http://localhost:5000/api/asset/<service_tag>" \
      -H "Authorization: Bearer your_oauth_token"
    ```
 
@@ -200,7 +200,7 @@ The tool supports several options for TLS certificate verification:
 2. Disabling SSL verification (not recommended for production):
    - Set `DELL_VERIFY_SSL=false` in your `.env` file
    - Or use the `--no-verify-ssl` flag with any command
-   - Example: `python dell_entitlement.py check-asset 8CTY3W3 --no-verify-ssl`
+   - Example: `python dell_entitlement.py check-asset <service_tag> --no-verify-ssl`
 
 3. Using system certificates (default):
    - If no certificate is specified, the tool will use your system's certificate store
