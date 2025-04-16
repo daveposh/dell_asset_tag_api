@@ -1,8 +1,14 @@
 # Use Alpine Linux as base image
 FROM alpine:3.19
 
-# Install Python and pip
-RUN apk add --no-cache python3 py3-pip
+# Install Python and required packages using the system package manager
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    py3-flask \
+    py3-requests \
+    py3-dotenv \
+    py3-gunicorn
 
 # Create a non-root user
 RUN adduser -D -u 1000 appuser
@@ -12,9 +18,6 @@ WORKDIR /app
 
 # Copy application code
 COPY . .
-
-# Install dependencies with --no-warn-script-location to suppress warnings
-RUN pip3 install --no-cache-dir --no-warn-script-location -r requirements.txt
 
 # Create necessary directories and set permissions
 RUN mkdir -p /app/config /app/scripts /app/certs && \
@@ -31,7 +34,6 @@ ENV SSL_ENABLED=false
 ENV SSL_CERT_PATH=/app/certs/server.crt
 ENV SSL_KEY_PATH=/app/certs/server.key
 ENV SSL_CA_CERT_PATH=/app/certs/ca.crt
-ENV PIP_NO_WARN_SCRIPT_LOCATION=1
 
 # Expose port
 EXPOSE 5000
