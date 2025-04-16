@@ -5,6 +5,28 @@ set -e
 
 echo "Starting Dell API Service..."
 
+# Function to create and activate virtual environment
+setup_venv() {
+    echo "Setting up Python virtual environment..."
+    
+    # Create virtual environment if it doesn't exist
+    if [ ! -d "$VENV_PATH" ]; then
+        echo "Creating new virtual environment..."
+        python3 -m venv "$VENV_PATH"
+    fi
+    
+    # Activate virtual environment
+    . "$VENV_PATH/bin/activate"
+    
+    # Install dependencies if requirements.txt exists
+    if [ -f "requirements.txt" ]; then
+        echo "Installing dependencies..."
+        pip install --no-cache-dir -r requirements.txt
+    else
+        echo "Warning: requirements.txt not found"
+    fi
+}
+
 # Check if config file exists
 if [ ! -f "$CONFIG_PATH" ]; then
     echo "Error: Configuration file not found at $CONFIG_PATH"
@@ -44,6 +66,9 @@ if [ "$SSL_ENABLED" = "true" ]; then
     
     echo "SSL certificates found and validated"
 fi
+
+# Setup virtual environment and install dependencies
+setup_venv
 
 # Start the application with gunicorn
 echo "Starting Gunicorn server..."

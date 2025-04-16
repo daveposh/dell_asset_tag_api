@@ -2,20 +2,13 @@
 FROM alpine:3.19
 
 # Install Python and pip
-RUN apk add --no-cache python3 py3-pip
+RUN apk add --no-cache python3 py3-pip python3-venv
 
 # Create a non-root user
 RUN adduser -D -u 1000 appuser
 
 # Set working directory
 WORKDIR /app
-
-# Copy requirements first to leverage cache
-COPY requirements.txt .
-
-# Install dependencies
-RUN apk add --no-cache python3 py3-pip
-RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
@@ -35,6 +28,7 @@ ENV SSL_ENABLED=false
 ENV SSL_CERT_PATH=/app/certs/server.crt
 ENV SSL_KEY_PATH=/app/certs/server.key
 ENV SSL_CA_CERT_PATH=/app/certs/ca.crt
+ENV VENV_PATH=/app/venv
 
 # Expose port
 EXPOSE 5000
