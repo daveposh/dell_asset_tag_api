@@ -241,4 +241,164 @@ The repository includes an `example.csv` file with dummy data to demonstrate the
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+# Dell API Service - Podman Setup Guide
+
+This guide will help you set up and run the Dell API service using Podman.
+
+## Prerequisites
+
+1. **Podman Installation**
+   - Windows: Install Podman Desktop from [Podman Desktop](https://podman-desktop.io/)
+   - Linux: 
+     ```bash
+     # For Ubuntu/Debian
+     sudo apt-get update
+     sudo apt-get install podman
+     
+     # For RHEL/CentOS
+     sudo dnf install podman
+     ```
+
+2. **Required Environment Variables**
+   - `DELL_API_CLIENT_ID`: Your Dell API client ID
+   - `DELL_API_CLIENT_SECRET`: Your Dell API client secret
+
+## Quick Start
+
+1. **Clone the Repository**
+   ```bash
+   git clone <repository-url>
+   cd dell_asset_tag_api
+   ```
+
+2. **Build the Container**
+   ```bash
+   podman build -t dell-api .
+   ```
+
+3. **Run the Container**
+   ```bash
+   podman run -d \
+     -p 5000:5000 \
+     -e DELL_API_CLIENT_ID=your_client_id \
+     -e DELL_API_CLIENT_SECRET=your_client_secret \
+     --name dell-api \
+     dell-api
+   ```
+
+## SSL Configuration (Optional)
+
+To enable SSL, you'll need to:
+1. Prepare your SSL certificates
+2. Mount them into the container
+3. Enable SSL in the configuration
+
+```bash
+podman run -d \
+  -p 5000:5000 \
+  -e DELL_API_CLIENT_ID=your_client_id \
+  -e DELL_API_CLIENT_SECRET=your_client_secret \
+  -e SSL_ENABLED=true \
+  -v /path/to/your/certs:/app/certs:ro \
+  --name dell-api \
+  dell-api
+```
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DELL_API_CLIENT_ID` | Dell API client ID | Required |
+| `DELL_API_CLIENT_SECRET` | Dell API client secret | Required |
+| `SSL_ENABLED` | Enable SSL | false |
+| `SSL_CERT_PATH` | Path to SSL certificate | /app/certs/server.crt |
+| `SSL_KEY_PATH` | Path to SSL private key | /app/certs/server.key |
+| `SSL_CA_CERT_PATH` | Path to CA certificate | /app/certs/ca.crt |
+
+### Configuration File
+
+The service uses a YAML configuration file located at `/app/config/config.yaml`. You can mount your own configuration file:
+
+```bash
+podman run -d \
+  -p 5000:5000 \
+  -v /path/to/your/config.yaml:/app/config/config.yaml:ro \
+  -e DELL_API_CLIENT_ID=your_client_id \
+  -e DELL_API_CLIENT_SECRET=your_client_secret \
+  --name dell-api \
+  dell-api
+```
+
+## Managing the Container
+
+### View Logs
+```bash
+podman logs dell-api
+```
+
+### Stop the Container
+```bash
+podman stop dell-api
+```
+
+### Remove the Container
+```bash
+podman rm dell-api
+```
+
+### Restart the Container
+```bash
+podman restart dell-api
+```
+
+## API Endpoints
+
+- `GET /api/health`: Health check endpoint
+- `GET /api/entitlement/<service_tag>`: Get entitlement information for a service tag
+- `POST /api/entitlement`: Get entitlement information using POST method
+
+## Troubleshooting
+
+1. **Container Won't Start**
+   - Check if required environment variables are set
+   - Verify port 5000 is not in use
+   - Check logs: `podman logs dell-api`
+
+2. **SSL Issues**
+   - Verify certificates are properly mounted
+   - Check certificate permissions
+   - Ensure SSL paths match your configuration
+
+3. **API Connection Issues**
+   - Verify Dell API credentials
+   - Check network connectivity
+   - Ensure proper port forwarding
+
+## Security Considerations
+
+1. **Environment Variables**
+   - Never commit sensitive credentials to version control
+   - Use environment variables or secure secret management
+   - Consider using Podman secrets for sensitive data
+
+2. **SSL Certificates**
+   - Keep certificates secure and up to date
+   - Use read-only mounts for certificates
+   - Regularly rotate certificates
+
+3. **Container Security**
+   - Run as non-root user (already configured)
+   - Use read-only mounts where possible
+   - Keep the container image updated
+
+## Support
+
+For issues or questions:
+1. Check the logs using `podman logs dell-api`
+2. Verify your configuration
+3. Ensure all prerequisites are met
+4. Contact the development team for assistance 
