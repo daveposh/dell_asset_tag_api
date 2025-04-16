@@ -275,7 +275,11 @@ This guide will help you set up and run the Dell API service using Podman.
 
 2. **Build the Container**
    ```bash
+   # Using the default Containerfile
    podman build -t dell-api .
+   
+   # Or explicitly specify the Containerfile
+   podman build -t dell-api -f Containerfile .
    ```
 
 3. **Run the Container**
@@ -337,7 +341,14 @@ podman run -d \
 
 ### View Logs
 ```bash
+# View all logs
 podman logs dell-api
+
+# Follow logs in real-time
+podman logs -f dell-api
+
+# View last 100 lines
+podman logs --tail 100 dell-api
 ```
 
 ### Stop the Container
@@ -355,6 +366,21 @@ podman rm dell-api
 podman restart dell-api
 ```
 
+### Container Management
+```bash
+# List running containers
+podman ps
+
+# List all containers (including stopped)
+podman ps -a
+
+# Inspect container
+podman inspect dell-api
+
+# View container resource usage
+podman stats dell-api
+```
+
 ## API Endpoints
 
 - `GET /api/health`: Health check endpoint
@@ -367,33 +393,49 @@ podman restart dell-api
    - Check if required environment variables are set
    - Verify port 5000 is not in use
    - Check logs: `podman logs dell-api`
+   - Verify Containerfile syntax: `podman build --no-cache -t dell-api .`
 
 2. **SSL Issues**
    - Verify certificates are properly mounted
    - Check certificate permissions
    - Ensure SSL paths match your configuration
+   - Check SELinux context if applicable: `chcon -Rt container_file_t /path/to/certs`
 
 3. **API Connection Issues**
    - Verify Dell API credentials
    - Check network connectivity
    - Ensure proper port forwarding
+   - Check container network: `podman network inspect bridge`
 
 ## Security Considerations
 
 1. **Environment Variables**
    - Never commit sensitive credentials to version control
    - Use environment variables or secure secret management
-   - Consider using Podman secrets for sensitive data
+   - Consider using Podman secrets for sensitive data:
+     ```bash
+     # Create a secret
+     podman secret create dell-api-secrets secrets.json
+     
+     # Use the secret in your container
+     podman run --secret dell-api-secrets ...
+     ```
 
 2. **SSL Certificates**
    - Keep certificates secure and up to date
    - Use read-only mounts for certificates
    - Regularly rotate certificates
+   - Consider using Podman volumes for certificate storage
 
 3. **Container Security**
    - Run as non-root user (already configured)
    - Use read-only mounts where possible
    - Keep the container image updated
+   - Use Podman's security features:
+     ```bash
+     # Run with additional security options
+     podman run --cap-drop=ALL --security-opt=no-new-privileges ...
+     ```
 
 ## Support
 
