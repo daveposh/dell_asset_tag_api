@@ -15,7 +15,8 @@ RUN apk add --no-cache \
     python3-dev \
     libffi-dev \
     openssl-dev \
-    ca-certificates
+    ca-certificates \
+    bash
 
 # Create a non-root user
 RUN adduser -D -u 1000 appuser
@@ -51,4 +52,4 @@ ENV SSL_CA_CERT_PATH=/app/certs/ca.crt
 EXPOSE 5000
 
 # Set the entrypoint to the startup script
-ENTRYPOINT ["/app/scripts/start.sh"] 
+ENTRYPOINT ["/bin/bash", "/app/scripts/start.sh"] 
