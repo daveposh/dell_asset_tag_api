@@ -20,14 +20,11 @@ RUN apk add --no-cache \
 # Create a non-root user
 RUN adduser -D -u 1000 appuser
 
-
-
 # Create necessary directories
 RUN mkdir -p /app/config /app/scripts /app/certs
 
 # Set working directory
 WORKDIR /app
-
 
 # Copy start.sh script first and set permissions
 COPY scripts/start.sh /app/scripts/
