@@ -2,13 +2,20 @@
 FROM alpine:3.19
 
 # Install Python and required packages using the system package manager
+# Also install build dependencies and shared libraries
 RUN apk add --no-cache \
     python3 \
     py3-pip \
     py3-flask \
     py3-requests \
     py3-dotenv \
-    py3-gunicorn
+    py3-gunicorn \
+    gcc \
+    musl-dev \
+    python3-dev \
+    libffi-dev \
+    openssl-dev \
+    ca-certificates
 
 # Create a non-root user
 RUN adduser -D -u 1000 appuser
@@ -24,7 +31,7 @@ RUN mkdir -p /app/config /app/scripts /app/certs && \
     chown -R appuser:appuser /app && \
     chmod +x /app/scripts/start.sh
 
-#Copy start.sh to /app/scripts/start.sh
+# Copy start.sh to /app/scripts/start.sh
 COPY /scripts/start.sh /app/scripts/
 
 # Switch to non-root user
