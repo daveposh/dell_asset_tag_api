@@ -24,6 +24,9 @@ RUN mkdir -p /app/config /app/scripts /app/certs && \
     chown -R appuser:appuser /app && \
     chmod +x /app/scripts/start.sh
 
+#Copy start.sh to /app/scripts/start.sh
+COPY start.sh /app/scripts/start.sh
+
 # Switch to non-root user
 USER appuser
 
