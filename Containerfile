@@ -23,16 +23,18 @@ RUN adduser -D -u 1000 appuser
 # Set working directory
 WORKDIR /app
 
+# Create necessary directories
+RUN mkdir -p /app/config /app/scripts /app/certs
+
+# Copy start.sh script first and set permissions
+COPY scripts/start.sh /app/scripts/
+RUN chmod +x /app/scripts/start.sh
+
 # Copy application code
 COPY . .
 
-# Create necessary directories and set permissions
-RUN mkdir -p /app/config /app/scripts /app/certs && \
-    chown -R appuser:appuser /app && \
-    chmod +x /app/scripts/start.sh
-
-# Copy start.sh to /app/scripts/start.sh
-COPY /scripts/start.sh /app/scripts/
+# Set permissions for all files
+RUN chown -R appuser:appuser /app
 
 # Switch to non-root user
 USER appuser
