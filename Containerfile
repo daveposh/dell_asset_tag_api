@@ -9,6 +9,7 @@ RUN apk add --no-cache \
     py3-requests \
     py3-dotenv \
     py3-gunicorn \
+    py3-yaml \
     bash
 
 # Create a non-root user
