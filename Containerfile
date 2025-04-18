@@ -1,8 +1,7 @@
 # Use Alpine Linux as base image
 FROM alpine:3.19
 
-# Install Python and required packages using the system package manager
-# Also install build dependencies and shared libraries
+# Install Python and required packages
 RUN apk add --no-cache \
     python3 \
     py3-pip \
@@ -10,12 +9,6 @@ RUN apk add --no-cache \
     py3-requests \
     py3-dotenv \
     py3-gunicorn \
-    gcc \
-    musl-dev \
-    python3-dev \
-    libffi-dev \
-    openssl-dev \
-    ca-certificates \
     bash
 
 # Create a non-root user
@@ -27,15 +20,12 @@ RUN mkdir -p /app/config /app/scripts /app/certs
 # Set working directory
 WORKDIR /app
 
-# Copy start.sh script first and set permissions
-COPY scripts/start.sh /app/scripts/
-RUN chmod +x /app/scripts/start.sh
-
 # Copy application code
 COPY . .
 
 # Set permissions for all files
-RUN chown -R appuser:appuser /app
+RUN chown -R appuser:appuser /app && \
+    chmod -R 755 /app
 
 # Switch to non-root user
 USER appuser
@@ -51,5 +41,5 @@ ENV SSL_CA_CERT_PATH=/app/certs/ca.crt
 # Expose port
 EXPOSE 5000
 
-# Set the entrypoint to the startup script
-ENTRYPOINT ["/bin/bash", "/app/scripts/start.sh"] 
+# Set the entrypoint to directly run gunicorn
+ENTRYPOINT ["/bin/bash", "-c", "echo 'Starting Dell API Service...' && exec gunicorn --bind 0.0.0.0:5000 --access-logfile - --error-logfile - --log-level info --capture-output --enable-stdio-inheritance dell_api:app"] 
