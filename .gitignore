@@ -182,6 +182,7 @@ temp/
 *.pid.lock
 
 # Project specific
+!config/config.yaml
 entitlements.csv
 service_tag_info.csv
 *.csv

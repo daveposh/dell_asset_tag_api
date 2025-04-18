@@ -1,0 +1,60 @@
+# Dell API Configuration
+
+# API Settings
+api:
+  base_url: "https://apigtwb2c.us.dell.com/PROD/sbil/eapi/v5"
+  timeout: 30  # seconds
+  retry_attempts: 3
+  retry_delay: 5  # seconds
+
+# Authentication
+auth:
+  client_id: "${DELL_API_CLIENT_ID}"  # Will be replaced with environment variable
+  client_secret: "${DELL_API_CLIENT_SECRET}"  # Will be replaced with environment variable
+  token_url: "https://apigtwb2c.us.dell.com/auth/oauth/v2/token"
+  token_expiry: 3600  # seconds
+
+# SSL Configuration
+ssl:
+  enabled: "${SSL_ENABLED}"  # Will be replaced with environment variable
+  cert_path: "${SSL_CERT_PATH}"  # Will be replaced with environment variable
+  key_path: "${SSL_KEY_PATH}"  # Will be replaced with environment variable
+  ca_cert_path: "${SSL_CA_CERT_PATH}"  # Will be replaced with environment variable
+
+# Logging
+logging:
+  level: "info"  # debug, info, warning, error, critical
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: null  # Set to a path to enable file logging
+
+# Server
+server:
+  host: "0.0.0.0"
+  port: 5000
+  workers: 4
+  timeout: 120  # seconds
+  keepalive: 5  # seconds
+
+# Cache
+cache:
+  enabled: true
+  type: "memory"  # memory, redis, etc.
+  ttl: 3600  # seconds
+
+# Export
+export:
+  csv:
+    delimiter: ","
+    encoding: "utf-8"
+    include_headers: true
+
+# Application Configuration
+app:
+  host: "0.0.0.0"
+  port: 5000
+  debug: false
+  ssl:
+    enabled: false
+    cert_path: "/app/certs/server.crt"
+    key_path: "/app/certs/server.key"
+    ca_cert_path: "/app/certs/ca.crt" 
