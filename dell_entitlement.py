@@ -2,6 +2,8 @@
 import os
 import json
 import csv
+import time
+import yaml
 from typing import List, Dict, Optional, Union, Any
 import click
 import requests
@@ -11,6 +13,20 @@ from rich.table import Table
 
 # Load environment variables
 load_dotenv()
+
+# Load configuration
+config_path = os.getenv('CONFIG_PATH', 'config/config.yaml')
+try:
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
+except Exception as e:
+    click.echo(f"Error loading config: {e}")
+    config = {}
+
+# Initialize cache
+cache = {}
+cache_enabled = config.get('cache', {}).get('enabled', True)
+cache_ttl = config.get('cache', {}).get('ttl', 3600)  # Default 1 hour
 
 class DellEntitlementClient:
     def __init__(self):
@@ -44,6 +60,19 @@ class DellEntitlementClient:
 
     def get_entitlement(self, service_tag: str) -> Union[Dict, List]:
         """Get entitlement information for a specific service tag."""
+        # Check cache first if enabled
+        if cache_enabled and service_tag in cache:
+            cache_entry = cache[service_tag]
+            # Check if cache entry is still valid
+            if time.time() - cache_entry['timestamp'] < cache_ttl:
+                click.echo(f"Cache hit for service tag: {service_tag}")
+                return cache_entry['data']
+            else:
+                click.echo(f"Cache expired for service tag: {service_tag}")
+                # Remove expired cache entry
+                del cache[service_tag]
+        
+        # If not in cache or expired, fetch from API
         if not self.access_token:
             self.authenticate()
 
@@ -75,7 +104,17 @@ class DellEntitlementClient:
                     click.echo("Could not read response body")
             
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            
+            # Store in cache if enabled
+            if cache_enabled:
+                cache[service_tag] = {
+                    'data': data,
+                    'timestamp': time.time()
+                }
+                click.echo(f"Cached data for service tag: {service_tag}")
+            
+            return data
         except requests.exceptions.RequestException as e:
             if hasattr(e, 'response') and e.response is not None and e.response.status_code == 401:
                 # Token might be expired, try to authenticate again

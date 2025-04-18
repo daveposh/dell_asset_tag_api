@@ -1,14 +1,30 @@
 #!/usr/bin/env python3
 import os
 import json
+import time
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 import requests
+import yaml
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
+
+# Load configuration
+config_path = os.getenv('CONFIG_PATH', 'config/config.yaml')
+try:
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
+except Exception as e:
+    print(f"Error loading config: {e}")
+    config = {}
+
+# Initialize cache
+cache = {}
+cache_enabled = config.get('cache', {}).get('enabled', True)
+cache_ttl = config.get('cache', {}).get('ttl', 3600)  # Default 1 hour
 
 class DellEntitlementClient:
     def __init__(self):
@@ -42,6 +58,19 @@ class DellEntitlementClient:
 
     def get_entitlement(self, service_tag: str):
         """Get entitlement information for a specific service tag."""
+        # Check cache first if enabled
+        if cache_enabled and service_tag in cache:
+            cache_entry = cache[service_tag]
+            # Check if cache entry is still valid
+            if time.time() - cache_entry['timestamp'] < cache_ttl:
+                print(f"Cache hit for service tag: {service_tag}")
+                return cache_entry['data']
+            else:
+                print(f"Cache expired for service tag: {service_tag}")
+                # Remove expired cache entry
+                del cache[service_tag]
+        
+        # If not in cache or expired, fetch from API
         if not self.access_token:
             self.authenticate()
 
@@ -65,14 +94,25 @@ class DellEntitlementClient:
             
             # Print detailed error information
             if response.status_code != 200:
-                error_info = {
-                    "status_code": response.status_code,
-                    "headers": dict(response.headers),
-                    "body": response.text
-                }
-                raise Exception(f"API error: {json.dumps(error_info)}")
+                print(f"Status Code: {response.status_code}")
+                print(f"Response Headers: {response.headers}")
+                try:
+                    print(f"Response Body: {response.text}")
+                except:
+                    print("Could not read response body")
             
-            return response.json()
+            response.raise_for_status()
+            data = response.json()
+            
+            # Store in cache if enabled
+            if cache_enabled:
+                cache[service_tag] = {
+                    'data': data,
+                    'timestamp': time.time()
+                }
+                print(f"Cached data for service tag: {service_tag}")
+            
+            return data
         except requests.exceptions.RequestException as e:
             if hasattr(e, 'response') and e.response is not None and e.response.status_code == 401:
                 # Token might be expired, try to authenticate again
