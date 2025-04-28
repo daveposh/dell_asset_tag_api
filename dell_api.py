@@ -241,4 +241,26 @@ def health_check():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True) 
+    ssl_enabled = os.environ.get('SSL_ENABLED', 'false').lower() == 'true'
+    
+    if ssl_enabled:
+        cert_path = os.environ.get('SSL_CERT_PATH', '/app/certs/server.crt')
+        key_path = os.environ.get('SSL_KEY_PATH', '/app/certs/server.key')
+        
+        if not os.path.exists(cert_path):
+            print(f"Error: SSL certificate not found at {cert_path}")
+            exit(1)
+        if not os.path.exists(key_path):
+            print(f"Error: SSL private key not found at {key_path}")
+            exit(1)
+            
+        print(f"Starting API server with SSL enabled (cert: {cert_path}, key: {key_path})")
+        app.run(
+            host='0.0.0.0',
+            port=port,
+            debug=True,
+            ssl_context=(cert_path, key_path)
+        )
+    else:
+        print("Starting API server without SSL")
+        app.run(host='0.0.0.0', port=port, debug=True) 
