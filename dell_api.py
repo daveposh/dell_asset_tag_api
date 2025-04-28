@@ -2,10 +2,18 @@
 import os
 import json
 import time
+import logging
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 import requests
 import yaml
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -17,8 +25,9 @@ config_path = os.getenv('CONFIG_PATH', 'config/config.yaml')
 try:
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
+    logger.info(f"Successfully loaded configuration from {config_path}")
 except Exception as e:
-    print(f"Error loading config: {e}")
+    logger.error(f"Error loading config from {config_path}: {e}")
     config = {}
 
 # Initialize cache
@@ -243,18 +252,57 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     ssl_enabled = os.environ.get('SSL_ENABLED', 'false').lower() == 'true'
     
+    logger.info(f"Starting API server on port {port}")
+    logger.info(f"SSL enabled: {ssl_enabled}")
+    
     if ssl_enabled:
         cert_path = os.environ.get('SSL_CERT_PATH', '/app/certs/server.crt')
         key_path = os.environ.get('SSL_KEY_PATH', '/app/certs/server.key')
         
-        if not os.path.exists(cert_path):
-            print(f"Error: SSL certificate not found at {cert_path}")
+        logger.info(f"SSL certificate path: {cert_path}")
+        logger.info(f"SSL key path: {key_path}")
+        
+        # Check if cert directory exists
+        cert_dir = os.path.dirname(cert_path)
+        if not os.path.exists(cert_dir):
+            logger.error(f"Certificate directory does not exist: {cert_dir}")
+            logger.error(f"Current working directory: {os.getcwd()}")
+            logger.error(f"Directory contents: {os.listdir('.')}")
             exit(1)
+        
+        # Check certificate file
+        if not os.path.exists(cert_path):
+            logger.error(f"SSL certificate not found at {cert_path}")
+            logger.error(f"Certificate directory contents: {os.listdir(cert_dir)}")
+            exit(1)
+        else:
+            logger.info(f"SSL certificate found at {cert_path}")
+            logger.info(f"Certificate file permissions: {oct(os.stat(cert_path).st_mode)[-3:]}")
+            logger.info(f"Certificate file size: {os.path.getsize(cert_path)} bytes")
+        
+        # Check key file
         if not os.path.exists(key_path):
-            print(f"Error: SSL private key not found at {key_path}")
+            logger.error(f"SSL private key not found at {key_path}")
+            logger.error(f"Certificate directory contents: {os.listdir(cert_dir)}")
+            exit(1)
+        else:
+            logger.info(f"SSL private key found at {key_path}")
+            logger.info(f"Key file permissions: {oct(os.stat(key_path).st_mode)[-3:]}")
+            logger.info(f"Key file size: {os.path.getsize(key_path)} bytes")
+        
+        try:
+            # Test reading the certificate and key
+            with open(cert_path, 'r') as f:
+                cert_content = f.read()
+                logger.info("Successfully read certificate file")
+            with open(key_path, 'r') as f:
+                key_content = f.read()
+                logger.info("Successfully read key file")
+        except Exception as e:
+            logger.error(f"Error reading certificate or key files: {e}")
             exit(1)
             
-        print(f"Starting API server with SSL enabled (cert: {cert_path}, key: {key_path})")
+        logger.info("Starting API server with SSL enabled")
         app.run(
             host='0.0.0.0',
             port=port,
@@ -262,5 +310,5 @@ if __name__ == '__main__':
             ssl_context=(cert_path, key_path)
         )
     else:
-        print("Starting API server without SSL")
+        logger.info("Starting API server without SSL")
         app.run(host='0.0.0.0', port=port, debug=True) 
