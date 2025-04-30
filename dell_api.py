@@ -10,6 +10,8 @@ import requests
 import yaml
 import re
 from gunicorn.app.base import BaseApplication
+from cryptography import x509
+from cryptography.hazmat.primitives import serialization
 
 # Load environment variables
 load_dotenv()
@@ -85,6 +87,23 @@ def configure_ssl():
         return None, False
         
     try:
+        # Verify certificate and key match
+        # Load and verify certificate
+        with open(cert_path, 'rb') as f:
+            cert = x509.load_pem_x509_certificate(f.read())
+        
+        # Load and verify private key
+        with open(key_path, 'rb') as f:
+            key = serialization.load_pem_private_key(
+                f.read(),
+                password=None
+            )
+        
+        # Verify the public key in the certificate matches the private key
+        if not isinstance(key.public_key(), type(cert.public_key())):
+            logger.error("Certificate and private key do not match")
+            return None, False
+            
         # Configure SSL context with strong security settings
         ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
         
@@ -92,7 +111,7 @@ def configure_ssl():
         ssl_context.load_cert_chain(
             certfile=cert_path,
             keyfile=key_path,
-            password=None  # Add password if your key is encrypted
+            password=None
         )
         
         # Set ciphers
@@ -114,8 +133,8 @@ def configure_ssl():
         ssl_context.set_ecdh_curve('prime256v1')
         
         # Verify the SSL context is properly configured
-        ssl_context.check_hostname = False  # Disable hostname checking for self-signed certs
-        ssl_context.verify_mode = ssl.CERT_NONE  # Disable certificate verification for self-signed certs
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
         
         return ssl_context, True
         
