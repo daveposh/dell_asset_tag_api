@@ -85,7 +85,7 @@ def configure_ssl():
         return None, False
         
     # Configure SSL context with strong security settings
-    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS)
+    ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
     ssl_context.load_cert_chain(cert_path, key_path)
     ssl_context.set_ciphers(ciphers)
     
