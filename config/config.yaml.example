@@ -1,0 +1,53 @@
+# Dell API Configuration Example
+
+# API Settings
+api:
+  base_url: "https://apigtwb2c.us.dell.com/PROD/sbil/eapi/v5"
+  timeout: 30  # seconds
+  retry_attempts: 3
+  retry_delay: 5  # seconds
+
+# Authentication
+auth:
+  client_id: "${DELL_API_CLIENT_ID}"  # Replace with your client ID
+  client_secret: "${DELL_API_CLIENT_SECRET}"  # Replace with your client secret
+  token_url: "https://apigtwb2c.us.dell.com/auth/oauth/v2/token"
+  token_expiry: 3600  # seconds
+
+# Server Configuration
+server:
+  host: "0.0.0.0"
+  port: "${PORT:-5001}"  # Default port 5001
+  debug: "${DEBUG:-false}"  # Default false
+  workers: 4
+  timeout: 120  # seconds
+  keepalive: 5  # seconds
+  use_wsgi: "${USE_WSGI:-false}"  # Default false
+  wsgi_worker_class: "gthread"  # gthread, gevent, etc.
+
+# SSL Configuration
+ssl:
+  enabled: "${SSL_ENABLED:-false}"  # Default false
+  cert_path: "${SSL_CERT_PATH:-certs/server.crt}"  # Default path
+  key_path: "${SSL_KEY_PATH:-certs/server.key}"  # Default path
+  ca_cert_path: "${SSL_CA_CERT_PATH:-certs/ca.crt}"  # Default path
+  tls_version: "TLSv1_2"  # TLS version to use
+  ciphers: "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256"  # Strong ciphers
+
+# Logging Configuration
+logging:
+  level: "${LOG_LEVEL:-info}"  # debug, info, warning, error, critical
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "${LOG_FILE:-null}"  # Set to a path to enable file logging
+
+# Cache Configuration
+cache:
+  enabled: true
+  ttl: 3600  # seconds
+
+# Export Configuration
+export:
+  csv:
+    delimiter: ","
+    encoding: "utf-8"
+    include_headers: true 

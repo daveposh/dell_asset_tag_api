@@ -3,37 +3,153 @@ import os
 import json
 import time
 import logging
+import ssl
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 import requests
 import yaml
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+import re
+from gunicorn.app.base import BaseApplication
 
 # Load environment variables
 load_dotenv()
 
-app = Flask(__name__)
+def substitute_env_vars(config):
+    """Recursively substitute environment variables in config values."""
+    if isinstance(config, dict):
+        return {k: substitute_env_vars(v) for k, v in config.items()}
+    elif isinstance(config, list):
+        return [substitute_env_vars(v) for v in config]
+    elif isinstance(config, str):
+        # Handle ${VAR:-default} syntax
+        match = re.match(r'\${([^:]+):-([^}]+)}', config)
+        if match:
+            var_name, default = match.groups()
+            return os.getenv(var_name, default)
+        # Handle ${VAR} syntax
+        match = re.match(r'\${([^}]+)}', config)
+        if match:
+            var_name = match.group(1)
+            return os.getenv(var_name, config)
+        return config
+    return config
+
+class StandaloneApplication(BaseApplication):
+    def __init__(self, app, options=None):
+        self.options = options or {}
+        self.application = app
+        super().__init__()
+
+    def load_config(self):
+        for key, value in self.options.items():
+            if key in self.cfg.settings and value is not None:
+                self.cfg.set(key.lower(), value)
+
+    def load(self):
+        return self.application
+
+def configure_ssl():
+    """Configure and verify SSL settings."""
+    ssl_config = config.get('ssl', {})
+    ssl_enabled = ssl_config.get('enabled', False)
+    
+    if not ssl_enabled:
+        return None, False
+        
+    cert_path = ssl_config.get('cert_path')
+    key_path = ssl_config.get('key_path')
+    tls_version = ssl_config.get('tls_version', 'TLSv1_2')
+    ciphers = ssl_config.get('ciphers', 'ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256')
+    
+    if not cert_path or not key_path:
+        logger.error("SSL enabled but certificate or key path not configured")
+        return None, False
+        
+    logger.info(f"SSL certificate path: {cert_path}")
+    logger.info(f"SSL key path: {key_path}")
+    logger.info(f"TLS version: {tls_version}")
+    logger.info(f"SSL ciphers: {ciphers}")
+    
+    # Check if cert directory exists
+    cert_dir = os.path.dirname(cert_path)
+    if not os.path.exists(cert_dir):
+        logger.error(f"Certificate directory does not exist: {cert_dir}")
+        return None, False
+    
+    # Check certificate files
+    if not os.path.exists(cert_path):
+        logger.error(f"SSL certificate not found at {cert_path}")
+        return None, False
+    if not os.path.exists(key_path):
+        logger.error(f"SSL private key not found at {key_path}")
+        return None, False
+        
+    # Configure SSL context with strong security settings
+    ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+    ssl_context.load_cert_chain(cert_path, key_path)
+    ssl_context.set_ciphers(ciphers)
+    
+    # Set minimum TLS version
+    if hasattr(ssl, 'TLSVersion'):
+        ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
+    else:
+        # Fallback for older Python versions
+        ssl_context.options |= (
+            ssl.OP_NO_SSLv2 |
+            ssl.OP_NO_SSLv3 |
+            ssl.OP_NO_TLSv1 |
+            ssl.OP_NO_TLSv1_1
+        )
+    
+    # Additional security options
+    ssl_context.options |= (
+        ssl.OP_NO_COMPRESSION |
+        ssl.OP_SINGLE_DH_USE |
+        ssl.OP_SINGLE_ECDH_USE |
+        ssl.OP_CIPHER_SERVER_PREFERENCE
+    )
+    
+    # Enable forward secrecy
+    ssl_context.set_ecdh_curve('prime256v1')
+    
+    return ssl_context, True
 
 # Load configuration
 config_path = os.getenv('CONFIG_PATH', 'config/config.yaml')
 try:
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
-    logger.info(f"Successfully loaded configuration from {config_path}")
+    # Substitute environment variables
+    config = substitute_env_vars(config)
+    logging.info(f"Successfully loaded configuration from {config_path}")
 except Exception as e:
-    logger.error(f"Error loading config from {config_path}: {e}")
+    logging.error(f"Error loading config from {config_path}: {e}")
     config = {}
+
+# Configure logging
+logging_config = config.get('logging', {})
+logging.basicConfig(
+    level=getattr(logging, logging_config.get('level', 'INFO').upper()),
+    format=logging_config.get('format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s'),
+    filename=logging_config.get('file') if logging_config.get('file') != 'null' else None
+)
+logger = logging.getLogger(__name__)
+
+app = Flask(__name__)
 
 # Initialize cache
 cache = {}
-cache_enabled = config.get('cache', {}).get('enabled', True)
-cache_ttl = config.get('cache', {}).get('ttl', 3600)  # Default 1 hour
+cache_config = config.get('cache', {})
+cache_enabled = cache_config.get('enabled', True)
+cache_ttl = cache_config.get('ttl', 3600)  # Default 1 hour
+
+# Server configuration
+server_config = config.get('server', {})
+host = server_config.get('host', '0.0.0.0')
+port = int(server_config.get('port', 5001))
+debug = server_config.get('debug', False)
+use_wsgi = server_config.get('use_wsgi', False)
+worker_class = server_config.get('wsgi_worker_class', 'gthread')
 
 class DellEntitlementClient:
     def __init__(self):
@@ -249,66 +365,39 @@ def health_check():
     return jsonify({"status": "ok"})
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    ssl_enabled = os.environ.get('SSL_ENABLED', 'false').lower() == 'true'
+    logger.info(f"Starting API server on {host}:{port}")
+    logger.info(f"Debug mode: {debug}")
+    logger.info(f"Using WSGI: {use_wsgi}")
     
-    logger.info(f"Starting API server on port {port}")
-    logger.info(f"SSL enabled: {ssl_enabled}")
+    # Configure SSL if enabled
+    ssl_context, ssl_enabled = configure_ssl()
     
-    if ssl_enabled:
-        cert_path = os.environ.get('SSL_CERT_PATH', '/app/certs/server.crt')
-        key_path = os.environ.get('SSL_KEY_PATH', '/app/certs/server.key')
+    if use_wsgi:
+        options = {
+            'bind': f'{host}:{port}',
+            'workers': server_config.get('workers', 4),
+            'worker_class': worker_class,
+            'timeout': server_config.get('timeout', 120),
+            'keepalive': server_config.get('keepalive', 5),
+            'loglevel': logging_config.get('level', 'info'),
+        }
         
-        logger.info(f"SSL certificate path: {cert_path}")
-        logger.info(f"SSL key path: {key_path}")
+        if ssl_enabled:
+            options['certfile'] = config['ssl']['cert_path']
+            options['keyfile'] = config['ssl']['key_path']
+            options['ssl_version'] = getattr(ssl, f'PROTOCOL_{config["ssl"]["tls_version"]}')
+            options['ciphers'] = config['ssl']['ciphers']
         
-        # Check if cert directory exists
-        cert_dir = os.path.dirname(cert_path)
-        if not os.path.exists(cert_dir):
-            logger.error(f"Certificate directory does not exist: {cert_dir}")
-            logger.error(f"Current working directory: {os.getcwd()}")
-            logger.error(f"Directory contents: {os.listdir('.')}")
-            exit(1)
-        
-        # Check certificate file
-        if not os.path.exists(cert_path):
-            logger.error(f"SSL certificate not found at {cert_path}")
-            logger.error(f"Certificate directory contents: {os.listdir(cert_dir)}")
-            exit(1)
-        else:
-            logger.info(f"SSL certificate found at {cert_path}")
-            logger.info(f"Certificate file permissions: {oct(os.stat(cert_path).st_mode)[-3:]}")
-            logger.info(f"Certificate file size: {os.path.getsize(cert_path)} bytes")
-        
-        # Check key file
-        if not os.path.exists(key_path):
-            logger.error(f"SSL private key not found at {key_path}")
-            logger.error(f"Certificate directory contents: {os.listdir(cert_dir)}")
-            exit(1)
-        else:
-            logger.info(f"SSL private key found at {key_path}")
-            logger.info(f"Key file permissions: {oct(os.stat(key_path).st_mode)[-3:]}")
-            logger.info(f"Key file size: {os.path.getsize(key_path)} bytes")
-        
-        try:
-            # Test reading the certificate and key
-            with open(cert_path, 'r') as f:
-                cert_content = f.read()
-                logger.info("Successfully read certificate file")
-            with open(key_path, 'r') as f:
-                key_content = f.read()
-                logger.info("Successfully read key file")
-        except Exception as e:
-            logger.error(f"Error reading certificate or key files: {e}")
-            exit(1)
-            
-        logger.info("Starting API server with SSL enabled")
-        app.run(
-            host='0.0.0.0',
-            port=port,
-            debug=True,
-            ssl_context=(cert_path, key_path)
-        )
+        StandaloneApplication(app, options).run()
     else:
-        logger.info("Starting API server without SSL")
-        app.run(host='0.0.0.0', port=port, debug=True) 
+        if ssl_enabled:
+            logger.info("Starting API server with SSL enabled")
+            app.run(
+                host=host,
+                port=port,
+                debug=debug,
+                ssl_context=ssl_context
+            )
+        else:
+            logger.info("Starting API server without SSL")
+            app.run(host=host, port=port, debug=debug) 
