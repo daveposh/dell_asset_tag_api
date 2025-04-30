@@ -87,31 +87,13 @@ def configure_ssl():
         return None, False
         
     try:
-        # Verify certificate and key match
-        # Load and verify certificate
-        with open(cert_path, 'rb') as f:
-            cert = x509.load_pem_x509_certificate(f.read())
-        
-        # Load and verify private key
-        with open(key_path, 'rb') as f:
-            key = serialization.load_pem_private_key(
-                f.read(),
-                password=None
-            )
-        
-        # Verify the public key in the certificate matches the private key
-        if not isinstance(key.public_key(), type(cert.public_key())):
-            logger.error("Certificate and private key do not match")
-            return None, False
-            
         # Configure SSL context with strong security settings
-        ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         
         # Load certificate and key
         ssl_context.load_cert_chain(
             certfile=cert_path,
-            keyfile=key_path,
-            password=None
+            keyfile=key_path
         )
         
         # Set ciphers
