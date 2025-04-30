@@ -85,24 +85,16 @@ def configure_ssl():
         return None, False
         
     # Configure SSL context with strong security settings
-    ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS)
     ssl_context.load_cert_chain(cert_path, key_path)
     ssl_context.set_ciphers(ciphers)
     
-    # Set minimum TLS version
-    if hasattr(ssl, 'TLSVersion'):
-        ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
-    else:
-        # Fallback for older Python versions
-        ssl_context.options |= (
-            ssl.OP_NO_SSLv2 |
-            ssl.OP_NO_SSLv3 |
-            ssl.OP_NO_TLSv1 |
-            ssl.OP_NO_TLSv1_1
-        )
-    
-    # Additional security options
+    # Disable older protocols and weak ciphers
     ssl_context.options |= (
+        ssl.OP_NO_SSLv2 |
+        ssl.OP_NO_SSLv3 |
+        ssl.OP_NO_TLSv1 |
+        ssl.OP_NO_TLSv1_1 |
         ssl.OP_NO_COMPRESSION |
         ssl.OP_SINGLE_DH_USE |
         ssl.OP_SINGLE_ECDH_USE |
