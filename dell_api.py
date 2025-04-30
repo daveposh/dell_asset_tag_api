@@ -84,27 +84,44 @@ def configure_ssl():
         logger.error(f"SSL private key not found at {key_path}")
         return None, False
         
-    # Configure SSL context with strong security settings
-    ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-    ssl_context.load_cert_chain(cert_path, key_path)
-    ssl_context.set_ciphers(ciphers)
-    
-    # Disable older protocols and weak ciphers
-    ssl_context.options |= (
-        ssl.OP_NO_SSLv2 |
-        ssl.OP_NO_SSLv3 |
-        ssl.OP_NO_TLSv1 |
-        ssl.OP_NO_TLSv1_1 |
-        ssl.OP_NO_COMPRESSION |
-        ssl.OP_SINGLE_DH_USE |
-        ssl.OP_SINGLE_ECDH_USE |
-        ssl.OP_CIPHER_SERVER_PREFERENCE
-    )
-    
-    # Enable forward secrecy
-    ssl_context.set_ecdh_curve('prime256v1')
-    
-    return ssl_context, True
+    try:
+        # Configure SSL context with strong security settings
+        ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+        
+        # Load certificate and key
+        ssl_context.load_cert_chain(
+            certfile=cert_path,
+            keyfile=key_path,
+            password=None  # Add password if your key is encrypted
+        )
+        
+        # Set ciphers
+        ssl_context.set_ciphers(ciphers)
+        
+        # Disable older protocols and weak ciphers
+        ssl_context.options |= (
+            ssl.OP_NO_SSLv2 |
+            ssl.OP_NO_SSLv3 |
+            ssl.OP_NO_TLSv1 |
+            ssl.OP_NO_TLSv1_1 |
+            ssl.OP_NO_COMPRESSION |
+            ssl.OP_SINGLE_DH_USE |
+            ssl.OP_SINGLE_ECDH_USE |
+            ssl.OP_CIPHER_SERVER_PREFERENCE
+        )
+        
+        # Enable forward secrecy
+        ssl_context.set_ecdh_curve('prime256v1')
+        
+        # Verify the SSL context is properly configured
+        ssl_context.check_hostname = False  # Disable hostname checking for self-signed certs
+        ssl_context.verify_mode = ssl.CERT_NONE  # Disable certificate verification for self-signed certs
+        
+        return ssl_context, True
+        
+    except Exception as e:
+        logger.error(f"Error configuring SSL context: {str(e)}")
+        return None, False
 
 # Load configuration
 config_path = os.getenv('CONFIG_PATH', 'config/config.yaml')
